@@ -4,79 +4,6 @@
 // 현재 URL 저장
 let currentUrl = window.location.href;
 
-// DOM 구조 분석 및 로깅 함수
-function analyzeDOM() {
-    console.log("ChatGPT DOM 구조 분석 시작...");
-    
-    // 메인 컨테이너 찾기 시도
-    const mainContainers = [
-        document.querySelector("main > div"),
-        document.querySelector("main div.flex.flex-col.items-center.text-sm"),
-        document.querySelector("main"),
-        document.querySelector(".flex.flex-col.pb-9.text-sm"),
-        document.querySelector("[data-testid='conversation-turn-0']")
-    ];
-    
-    console.log("가능한 메인 컨테이너:", mainContainers);
-    
-    // 질문 요소 찾기 시도
-    const possibleQuestionSelectors = [
-        '.flex.w-full.flex-col.gap-1.items-end',
-        'div[data-message-author-role="user"]',
-        '[data-testid^="conversation-turn-"][data-message-author-role="user"]',
-        '.text-token-text-primary[data-message-author-role="user"]'
-    ];
-    
-    // 답변 요소 찾기 시도
-    const possibleAnswerSelectors = [
-        '.markdown.prose.w-full.break-words.dark\\:prose-invert',
-        'div[data-message-author-role="assistant"]',
-        '[data-testid^="conversation-turn-"][data-message-author-role="assistant"]',
-        '.text-token-text-primary[data-message-author-role="assistant"]'
-    ];
-    
-    // 각 선택자로 요소 찾기 시도 및 결과 로깅
-    console.log("--- 질문 요소 찾기 시도 ---");
-    possibleQuestionSelectors.forEach(selector => {
-        const elements = document.querySelectorAll(selector);
-        console.log(`선택자 '${selector}'로 찾은 요소 수: ${elements.length}`);
-        if (elements.length > 0) {
-            console.log("첫 번째 요소:", elements[0]);
-        }
-    });
-    
-    console.log("--- 답변 요소 찾기 시도 ---");
-    possibleAnswerSelectors.forEach(selector => {
-        const elements = document.querySelectorAll(selector);
-        console.log(`선택자 '${selector}'로 찾은 요소 수: ${elements.length}`);
-        if (elements.length > 0) {
-            console.log("첫 번째 요소:", elements[0]);
-        }
-    });
-    
-    // 대화 턴 요소 찾기
-    const conversationTurns = document.querySelectorAll('[data-testid^="conversation-turn-"]');
-    console.log(`대화 턴 요소 수: ${conversationTurns.length}`);
-    if (conversationTurns.length > 0) {
-        console.log("첫 번째 대화 턴 요소:", conversationTurns[0]);
-        
-        // 대화 턴 내부 구조 분석
-        const firstTurn = conversationTurns[0];
-        console.log("대화 턴 역할:", firstTurn.getAttribute('data-message-author-role'));
-        console.log("대화 턴 ID:", firstTurn.getAttribute('data-testid'));
-        console.log("대화 턴 클래스:", firstTurn.className);
-        
-        // 내부 요소 확인
-        const header = firstTurn.querySelector('[data-testid="conversation-turn-header"]');
-        console.log("대화 턴 헤더:", header);
-        
-        const content = firstTurn.querySelector('[data-message-author-role]');
-        console.log("대화 턴 내용:", content);
-    }
-    
-    console.log("ChatGPT DOM 구조 분석 완료");
-}
-
 // 인라인 뷰 컨테이너 초기화 함수
 function clearInlineView() {
     const container = document.getElementById('chatgpt-inline-view-container');
@@ -97,17 +24,6 @@ function checkUrlChange() {
     }
 }
 
-// 페이지 로드 후 DOM 분석 실행
-window.addEventListener('load', () => {
-    // 페이지가 완전히 로드된 후 실행
-    setTimeout(analyzeDOM, 2000);
-});
-
-// 페이지가 이미 로드된 경우를 위한 처리
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(analyzeDOM, 2000);
-}
-
 // 실제 인라인 뷰 기능 구현
 function rearrangeChat() {
     console.log("인라인 뷰 적용 시도...");
@@ -115,9 +31,8 @@ function rearrangeChat() {
     // URL 변경 확인
     checkUrlChange();
     
-    // 최신 DOM 구조에 맞게 질문과 답변 요소 찾기
-    const userMessages = document.querySelectorAll('div[data-message-author-role="user"]');
-    const assistantMessages = document.querySelectorAll('div[data-message-author-role="assistant"]');
+    // DOM 분석기를 사용하여 메시지 요소 찾기
+    const { userMessages, assistantMessages } = DOMAnalyzer.findChatElements();
     
     console.log(`사용자 메시지: ${userMessages.length}, 어시스턴트 메시지: ${assistantMessages.length}`);
     
@@ -127,8 +42,8 @@ function rearrangeChat() {
         return;
     }
     
-    // 메인 컨테이너 찾기
-    const mainContainer = document.querySelector("main") || document.body;
+    // DOM 분석기를 사용하여 메인 컨테이너 찾기
+    const mainContainer = DOMAnalyzer.findMainContainer();
     
     // 기존 인라인 뷰 요소 제거
     clearInlineView();
@@ -241,7 +156,8 @@ setInterval(checkUrlChange, 1000);
 
 // 초기 실행
 setTimeout(() => {
-    analyzeDOM();
+    // DOM 분석기를 사용하여 DOM 구조 로깅
+    DOMAnalyzer.logDOMStructure();
     rearrangeChat();
     
     // DOM 변경 감지 시작
