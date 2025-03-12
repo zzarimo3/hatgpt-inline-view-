@@ -11,7 +11,7 @@
   "content_scripts": [
     {
       "matches": ["*://chatgpt.com/*", "*://chat.openai.com/*"],
-      "js": ["utils.js", "dom-analyzer.js", "ui-manager.js", "event-handlers.js", "content.js"],
+      "js": ["utils.js", "dom-analyzer.js", "ui-manager.js", "event-handlers.js", "main.js", "content.js"],
       "css": ["styles.css"]
     }
   ],
