@@ -1,6 +1,9 @@
 // ChatGPT 인라인 뷰 확장 프로그램
 // 질문과 답변을 한 줄에 정렬하여 표시하는 기능 구현
 
+// 현재 URL 저장
+let currentUrl = window.location.href;
+
 // DOM 구조 분석 및 로깅 함수
 function analyzeDOM() {
     console.log("ChatGPT DOM 구조 분석 시작...");
@@ -74,6 +77,26 @@ function analyzeDOM() {
     console.log("ChatGPT DOM 구조 분석 완료");
 }
 
+// 인라인 뷰 컨테이너 초기화 함수
+function clearInlineView() {
+    const container = document.getElementById('chatgpt-inline-view-container');
+    if (container) {
+        console.log("인라인 뷰 컨테이너 초기화");
+        container.remove();
+    }
+}
+
+// URL 변경 감지 함수
+function checkUrlChange() {
+    const newUrl = window.location.href;
+    if (currentUrl !== newUrl) {
+        console.log("URL 변경 감지:", newUrl);
+        currentUrl = newUrl;
+        clearInlineView();
+        setTimeout(rearrangeChat, 2000); // URL 변경 후 2초 후에 재배치 실행
+    }
+}
+
 // 페이지 로드 후 DOM 분석 실행
 window.addEventListener('load', () => {
     // 페이지가 완전히 로드된 후 실행
@@ -88,6 +111,9 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 // 실제 인라인 뷰 기능 구현
 function rearrangeChat() {
     console.log("인라인 뷰 적용 시도...");
+    
+    // URL 변경 확인
+    checkUrlChange();
     
     // 최신 DOM 구조에 맞게 질문과 답변 요소 찾기
     const userMessages = document.querySelectorAll('div[data-message-author-role="user"]');
@@ -105,8 +131,7 @@ function rearrangeChat() {
     const mainContainer = document.querySelector("main") || document.body;
     
     // 기존 인라인 뷰 요소 제거
-    const existingRows = document.querySelectorAll('.chat-row');
-    existingRows.forEach(row => row.remove());
+    clearInlineView();
     
     // 메시지 쌍 생성
     const messagePairs = [];
@@ -118,6 +143,24 @@ function rearrangeChat() {
             assistant: assistantMessages[i]
         });
     }
+    
+    // 인라인 뷰 컨테이너 생성
+    let inlineViewContainer = document.createElement('div');
+    inlineViewContainer.id = 'chatgpt-inline-view-container';
+    inlineViewContainer.style.width = '100%';
+    inlineViewContainer.style.padding = '20px';
+    inlineViewContainer.style.backgroundColor = 'rgba(0,0,0,0.05)';
+    inlineViewContainer.style.borderRadius = '10px';
+    inlineViewContainer.style.marginTop = '20px';
+    inlineViewContainer.style.marginBottom = '20px';
+    
+    // 제목 추가
+    const title = document.createElement('h2');
+    title.textContent = 'ChatGPT 인라인 뷰';
+    title.style.textAlign = 'center';
+    title.style.marginBottom = '20px';
+    title.style.color = '#444';
+    inlineViewContainer.appendChild(title);
     
     // 각 메시지 쌍을 인라인으로 재배치
     messagePairs.forEach((pair, index) => {
@@ -158,30 +201,6 @@ function rearrangeChat() {
             newRow.appendChild(userMsgClone);
             newRow.appendChild(assistantMsgClone);
             
-            // 인라인 뷰 컨테이너 생성 또는 찾기
-            let inlineViewContainer = document.getElementById('chatgpt-inline-view-container');
-            if (!inlineViewContainer) {
-                inlineViewContainer = document.createElement('div');
-                inlineViewContainer.id = 'chatgpt-inline-view-container';
-                inlineViewContainer.style.width = '100%';
-                inlineViewContainer.style.padding = '20px';
-                inlineViewContainer.style.backgroundColor = 'rgba(0,0,0,0.05)';
-                inlineViewContainer.style.borderRadius = '10px';
-                inlineViewContainer.style.marginTop = '20px';
-                inlineViewContainer.style.marginBottom = '20px';
-                
-                // 제목 추가
-                const title = document.createElement('h2');
-                title.textContent = 'ChatGPT 인라인 뷰';
-                title.style.textAlign = 'center';
-                title.style.marginBottom = '20px';
-                title.style.color = '#444';
-                inlineViewContainer.appendChild(title);
-                
-                // 메인 컨테이너에 인라인 뷰 컨테이너 추가
-                mainContainer.appendChild(inlineViewContainer);
-            }
-            
             // 인라인 뷰 컨테이너에 새 행 추가
             inlineViewContainer.appendChild(newRow);
             console.log("메시지 쌍 재배치 성공:", index);
@@ -189,6 +208,9 @@ function rearrangeChat() {
             console.error("메시지 재배치 중 오류 발생:", e);
         }
     });
+    
+    // 메인 컨테이너에 인라인 뷰 컨테이너 추가
+    mainContainer.appendChild(inlineViewContainer);
     
     console.log("인라인 뷰 적용 완료");
 }
@@ -213,6 +235,9 @@ const observer = new MutationObserver((mutations) => {
         setTimeout(rearrangeChat, 1000);
     }
 });
+
+// URL 변경 감지를 위한 주기적 체크
+setInterval(checkUrlChange, 1000);
 
 // 초기 실행
 setTimeout(() => {
