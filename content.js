@@ -86,18 +86,24 @@ setInterval(checkUrlChange, 1000);
 
 // 초기화 함수
 function initializeExtension() {
-  console.log("ChatGPT 인라인 뷰 확장 프로그램 초기화 시작...");
+  Utils.logDebug("ChatGPT 인라인 뷰 확장 프로그램 초기화 시작...");
   
   try {
+    // 버전 정보 로깅
+    const version = Utils.getExtensionVersion();
+    const browserInfo = Utils.getBrowserInfo();
+    Utils.logDebug(`확장 프로그램 버전: ${version}, 브라우저: ${browserInfo.name} ${browserInfo.version}`);
+    
     // UI 관리자 초기화
     UIManager.init();
     
     // 이벤트 핸들러 초기화
     EventHandlers.init();
     
-    console.log("ChatGPT 인라인 뷰 확장 프로그램 초기화 완료");
+    Utils.logDebug("ChatGPT 인라인 뷰 확장 프로그램 초기화 완료");
   } catch (error) {
-    console.error("초기화 중 오류 발생:", error);
+    Utils.logError("초기화 중 오류 발생", error);
+    Utils.showErrorNotification("확장 프로그램 초기화 중 오류가 발생했습니다. 페이지를 새로고침해 보세요.");
   }
 }
 

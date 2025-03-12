@@ -26,7 +26,7 @@ const UIManager = {
     this.loadSettings();
     this.createToggleButton();
     
-    console.log("[UIManager] 초기화 완료, 설정:", this.settings);
+    Utils.logDebug("[UIManager] 초기화 완료, 설정:", this.settings);
     return this;
   },
   
@@ -36,10 +36,10 @@ const UIManager = {
       const savedSettings = localStorage.getItem('chatgpt-inline-view-settings');
       if (savedSettings) {
         this.settings = { ...this.settings, ...JSON.parse(savedSettings) };
-        console.log("[UIManager] 설정 불러옴:", this.settings);
+        Utils.logDebug("[UIManager] 설정 불러옴:", this.settings);
       }
     } catch (error) {
-      console.error("[UIManager] 설정 로드 중 오류:", error);
+      Utils.logError("[UIManager] 설정 로드 중 오류", error);
     }
   },
   
@@ -47,9 +47,9 @@ const UIManager = {
   saveSettings() {
     try {
       localStorage.setItem('chatgpt-inline-view-settings', JSON.stringify(this.settings));
-      console.log("[UIManager] 설정 저장됨:", this.settings);
+      Utils.logDebug("[UIManager] 설정 저장됨:", this.settings);
     } catch (error) {
-      console.error("[UIManager] 설정 저장 중 오류:", error);
+      Utils.logError("[UIManager] 설정 저장 중 오류", error);
     }
   },
   
@@ -102,7 +102,7 @@ const UIManager = {
     
     // 페이지에 추가
     document.body.appendChild(button);
-    console.log("[UIManager] 토글 버튼 생성됨");
+    Utils.logDebug("[UIManager] 토글 버튼 생성됨");
   },
   
   // 설정 패널 생성
@@ -245,11 +245,11 @@ const UIManager = {
   createInlineView(userMessages, assistantMessages) {
     // 설정이 비활성화된 경우 생성하지 않음
     if (!this.settings.enabled) {
-      console.log("[UIManager] 인라인 뷰 비활성화됨, 생성 취소");
+      Utils.logDebug("[UIManager] 인라인 뷰 비활성화됨, 생성 취소");
       return null;
     }
     
-    console.log("[UIManager] 인라인 뷰 생성 시작");
+    Utils.logDebug("[UIManager] 인라인 뷰 생성 시작");
     
     // 기존 뷰 제거
     this.removeInlineView();
@@ -376,9 +376,9 @@ const UIManager = {
             assistantDiv.appendChild(assistantContent);
           } catch (err) {
             // 복제 실패 시 텍스트 콘텐츠만 추출
-            userDiv.textContent = pair.user.textContent || '(내용을 불러올 수 없습니다)';
-            assistantDiv.textContent = pair.assistant.textContent || '(내용을 불러올 수 없습니다)';
-            console.error(`[UIManager] 메시지 #${index} 복제 중 오류:`, err);
+            userDiv.textContent = Utils.extractTextContent(pair.user) || '(내용을 불러올 수 없습니다)';
+            assistantDiv.textContent = Utils.extractTextContent(pair.assistant) || '(내용을 불러올 수 없습니다)';
+            Utils.logError(`[UIManager] 메시지 #${index} 복제 중 오류`, err);
           }
           
           // 행에 메시지 추가
@@ -386,7 +386,7 @@ const UIManager = {
           row.appendChild(assistantDiv);
           fragment.appendChild(row);
         } catch (err) {
-          console.error(`[UIManager] 메시지 쌍 #${index} 처리 중 오류:`, err);
+          Utils.logError(`[UIManager] 메시지 쌍 #${index} 처리 중 오류`, err);
         }
       });
       
@@ -408,7 +408,7 @@ const UIManager = {
     const mainElement = document.querySelector('main') || document.body;
     mainElement.appendChild(this.container);
     
-    console.log("[UIManager] 인라인 뷰 표시됨");
+    Utils.logDebug("[UIManager] 인라인 뷰 표시됨");
   },
   
   // 인라인 뷰 업데이트
@@ -432,7 +432,7 @@ const UIManager = {
         label.style.display = this.settings.showLineNumbers ? 'block' : 'none';
       });
       
-      console.log("[UIManager] 인라인 뷰 업데이트됨:", this.settings);
+      Utils.logDebug("[UIManager] 인라인 뷰 업데이트됨:", this.settings);
     }
   },
   
@@ -441,7 +441,7 @@ const UIManager = {
     if (this.container) {
       this.container.remove();
       this.container = null;
-      console.log("[UIManager] 인라인 뷰 제거됨");
+      Utils.logDebug("[UIManager] 인라인 뷰 제거됨");
     }
   }
 };

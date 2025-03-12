@@ -7,7 +7,7 @@
 const DOMAnalyzer = {
   // 메시지 요소 찾기
   findChatElements() {
-    console.log("[DOMAnalyzer] ChatGPT 메시지 요소 탐색 시작...");
+    Utils.logDebug("[DOMAnalyzer] ChatGPT 메시지 요소 탐색 시작...");
     
     // 방법 1: data-testid 속성을 사용하는 최신 버전의 ChatGPT UI
     const conversationTurns = Array.from(
@@ -25,23 +25,23 @@ const DOMAnalyzer = {
         )
       };
       
-      console.log(`[DOMAnalyzer] 탐색 결과: 사용자 메시지 ${result.userMessages.length}개, 어시스턴트 메시지 ${result.assistantMessages.length}개 발견`);
+      Utils.logDebug(`[DOMAnalyzer] 탐색 결과: 사용자 메시지 ${result.userMessages.length}개, 어시스턴트 메시지 ${result.assistantMessages.length}개 발견`);
       return result;
     }
     
     // 방법 2: 역할 속성을 직접 사용하는 대체 선택자
-    console.log("[DOMAnalyzer] 대화 턴 요소를 찾을 수 없음, 대체 선택자 시도...");
+    Utils.logDebug("[DOMAnalyzer] 대화 턴 요소를 찾을 수 없음, 대체 선택자 시도...");
     
     const userMessages = document.querySelectorAll('div[data-message-author-role="user"]');
     const assistantMessages = document.querySelectorAll('div[data-message-author-role="assistant"]');
     
     if (userMessages.length > 0 || assistantMessages.length > 0) {
-      console.log(`[DOMAnalyzer] 대체 선택자로 발견: 사용자 메시지 ${userMessages.length}개, 어시스턴트 메시지 ${assistantMessages.length}개`);
+      Utils.logDebug(`[DOMAnalyzer] 대체 선택자로 발견: 사용자 메시지 ${userMessages.length}개, 어시스턴트 메시지 ${assistantMessages.length}개`);
       return { userMessages, assistantMessages };
     }
     
     // 방법 3: DOM 구조 분석을 통한 추론
-    console.log("[DOMAnalyzer] 표준 선택자로 메시지를 찾을 수 없음, 구조 추론 시도...");
+    Utils.logDebug("[DOMAnalyzer] 표준 선택자로 메시지를 찾을 수 없음, 구조 추론 시도...");
     
     // 가능한 대화 컨테이너 목록
     const possibleContainers = [
@@ -62,7 +62,7 @@ const DOMAnalyzer = {
         
         // 두 그룹이 모두 존재하는 경우
         if (odd.length > 0 && even.length > 0) {
-          console.log("[DOMAnalyzer] 패턴 추론으로 메시지 발견: 패턴별 구분");
+          Utils.logDebug("[DOMAnalyzer] 패턴 추론으로 메시지 발견: 패턴별 구분");
           
           // 첫 번째 요소 분석으로 사용자/어시스턴트 역할 추론
           const firstElementClasses = odd[0].className;
@@ -82,7 +82,7 @@ const DOMAnalyzer = {
     }
     
     // 하나도 찾지 못한 경우
-    console.log("[DOMAnalyzer] 메시지 요소를 찾을 수 없음");
+    Utils.logDebug("[DOMAnalyzer] 메시지 요소를 찾을 수 없음");
     return { userMessages: [], assistantMessages: [] };
   },
   
@@ -90,19 +90,8 @@ const DOMAnalyzer = {
   extractMessageContent(messageElement) {
     if (!messageElement) return '';
     
-    // 1. 마크다운 콘텐츠 찾기 시도
-    const markdownContent = messageElement.querySelector('.markdown');
-    if (markdownContent) {
-      return markdownContent.textContent.trim();
-    }
-    
-    // 2. 데이터 속성에서 메시지 찾기 시도
-    if (messageElement.hasAttribute('data-message-content')) {
-      return messageElement.getAttribute('data-message-content');
-    }
-    
-    // 3. 일반 텍스트 콘텐츠 반환
-    return messageElement.textContent.trim();
+    // Utils의 extractTextContent 함수 사용
+    return Utils.extractTextContent(messageElement);
   },
   
   // 메인 컨테이너 찾기
@@ -129,25 +118,25 @@ const DOMAnalyzer = {
   
   // DOM 구조 분석 로깅 (디버깅용)
   logDOMStructure() {
-    console.log("[DOMAnalyzer] ChatGPT DOM 구조 분석 시작...");
+    Utils.logDebug("[DOMAnalyzer] ChatGPT DOM 구조 분석 시작...");
     
     // 주요 컨테이너 로깅
     const mainElement = document.querySelector('main');
-    console.log("[DOMAnalyzer] 메인 요소:", mainElement);
+    Utils.logDebug("[DOMAnalyzer] 메인 요소:", mainElement);
     
     if (mainElement) {
       // 첫번째 레벨 자식 요소 로깅
-      console.log("[DOMAnalyzer] 메인 요소 자식들:", Array.from(mainElement.children));
+      Utils.logDebug("[DOMAnalyzer] 메인 요소 자식들:", Array.from(mainElement.children));
       
       // 대화 턴 요소 찾기
       const conversationTurns = mainElement.querySelectorAll('[data-testid^="conversation-turn-"]');
-      console.log(`[DOMAnalyzer] 대화 턴 수: ${conversationTurns.length}`);
+      Utils.logDebug(`[DOMAnalyzer] 대화 턴 수: ${conversationTurns.length}`);
       
       if (conversationTurns.length > 0) {
         // 첫번째 대화 턴 분석
         const firstTurn = conversationTurns[0];
-        console.log("[DOMAnalyzer] 첫번째 대화 턴:", firstTurn);
-        console.log("[DOMAnalyzer] 첫번째 대화 턴 속성:", {
+        Utils.logDebug("[DOMAnalyzer] 첫번째 대화 턴:", firstTurn);
+        Utils.logDebug("[DOMAnalyzer] 첫번째 대화 턴 속성:", {
           role: firstTurn.getAttribute('data-message-author-role'),
           id: firstTurn.getAttribute('data-testid'),
           class: firstTurn.className
@@ -158,7 +147,7 @@ const DOMAnalyzer = {
     // 역할별 메시지 요소 찾기
     this.findChatElements();
     
-    console.log("[DOMAnalyzer] DOM 구조 분석 완료");
+    Utils.logDebug("[DOMAnalyzer] DOM 구조 분석 완료");
   }
 };
 
