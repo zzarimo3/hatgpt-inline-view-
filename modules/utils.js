@@ -1,241 +1,59 @@
 /**
  * ChatGPT 인라인 뷰 - 유틸리티 모듈
- * 공통 유틸리티 함수 및 성능 최적화 기능
+ * 공통 유틸리티 함수 모음
  */
+
+// 버전 정보
+export const VERSION = '1.5.0';
 
 // 디버그 모드 설정
-const DEBUG = true;
+let debugMode = false;
 
-/**
- * 디버그 로그 출력
- * @param {string} message - 로그 메시지
- * @param {any} data - 추가 데이터 (선택 사항)
- */
-function logDebug(message, data) {
-  if (DEBUG) {
-    if (data !== undefined) {
-      console.log(`[ChatGPT 인라인 뷰] ${message}`, data);
-    } else {
-      console.log(`[ChatGPT 인라인 뷰] ${message}`);
-    }
+// 디버그 모드 설정 함수
+export function setDebugMode(enabled) {
+  debugMode = enabled;
+}
+
+// 디버그 로그 출력
+export function logDebug(message) {
+  if (debugMode) {
+    console.log(`[ChatGPT 인라인 뷰] ${message}`);
   }
 }
 
-/**
- * 오류 로그 출력
- * @param {string} message - 오류 메시지
- * @param {Error} error - 오류 객체
- */
-function logError(message, error) {
+// 오류 로그 출력
+export function logError(message, error) {
   console.error(`[ChatGPT 인라인 뷰] ${message}`, error);
-  console.trace();
-  
-  // 사용자에게 오류 알림 (심각한 오류일 경우)
-  if (error && (error.message?.includes('fatal') || error.stack?.includes('fatal'))) {
-    showErrorNotification(message);
-  }
 }
 
-/**
- * 오류 알림 표시
- * @param {string} message - 오류 메시지
- */
-function showErrorNotification(message) {
-  // 기존 알림 제거
-  const existingNotification = document.getElementById('chatgpt-inline-view-error');
-  if (existingNotification) {
-    existingNotification.remove();
-  }
-  
-  // 새 알림 생성
-  const notification = document.createElement('div');
-  notification.id = 'chatgpt-inline-view-error';
-  
-  // 스타일 설정
-  Object.assign(notification.style, {
-    position: 'fixed',
-    top: '20px',
-    right: '20px',
-    zIndex: '10000',
-    padding: '15px',
-    backgroundColor: '#f44336',
-    color: 'white',
-    borderRadius: '5px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    maxWidth: '400px'
-  });
-  
-  // 메시지 영역
-  const messageDiv = document.createElement('div');
-  messageDiv.innerHTML = `<strong>오류 발생</strong><br>${message}`;
-  
-  // 닫기 버튼
-  const closeButton = document.createElement('button');
-  closeButton.textContent = '×';
-  closeButton.style.backgroundColor = 'transparent';
-  closeButton.style.border = 'none';
-  closeButton.style.color = 'white';
-  closeButton.style.fontSize = '24px';
-  closeButton.style.marginLeft = '15px';
-  closeButton.style.cursor = 'pointer';
-  
-  closeButton.addEventListener('click', () => {
-    notification.remove();
-  });
-  
-  // 요소 추가
-  notification.appendChild(messageDiv);
-  notification.appendChild(closeButton);
-  document.body.appendChild(notification);
-  
-  // 자동 제거 타이머
-  setTimeout(() => {
-    if (document.body.contains(notification)) {
-      notification.remove();
-    }
-  }, 8000);
+// 경고 로그 출력
+export function logWarning(message) {
+  console.warn(`[ChatGPT 인라인 뷰] ${message}`);
 }
 
-/**
- * 스로틀링 함수 (성능 최적화)
- * @param {Function} func - 스로틀링할 함수
- * @param {number} delay - 지연 시간 (밀리초)
- * @returns {Function} 스로틀링된 함수
- */
-function throttle(func, delay) {
-  let lastCall = 0;
-  let timeoutId = null;
-  
-  return function(...args) {
-    const now = Date.now();
-    const timeSinceLastCall = now - lastCall;
-    
-    // 마지막 호출 후 지연 시간이 경과하지 않은 경우
-    if (timeSinceLastCall < delay) {
-      // 기존 타임아웃 취소
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      
-      // 남은 지연 시간 후에 실행하도록 예약
-      const remainingTime = delay - timeSinceLastCall;
-      timeoutId = setTimeout(() => {
-        lastCall = Date.now();
-        func.apply(this, args);
-        timeoutId = null;
-      }, remainingTime);
-      
-      return;
-    }
-    
-    // 충분한 시간이 경과한 경우 즉시 실행
-    lastCall = now;
-    func.apply(this, args);
-  };
+// 확장 프로그램 버전 가져오기
+export function getExtensionVersion() {
+  return VERSION;
 }
 
-/**
- * 디바운스 함수 (성능 최적화)
- * @param {Function} func - 디바운스할 함수
- * @param {number} delay - 지연 시간 (밀리초)
- * @returns {Function} 디바운스된 함수
- */
-function debounce(func, delay) {
-  let timeoutId = null;
-  
-  return function(...args) {
-    // 기존 타임아웃 취소
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    
-    // 새 타임아웃 설정
-    timeoutId = setTimeout(() => {
-      func.apply(this, args);
-      timeoutId = null;
-    }, delay);
-  };
-}
-
-/**
- * 요소에서 텍스트 콘텐츠만 추출 (HTML 제거)
- * @param {Element} element - 텍스트를 추출할 요소
- * @returns {string} 추출된 텍스트
- */
-function extractTextContent(element) {
-  if (!element) return '';
-  
-  // HTML 복제
-  const clone = element.cloneNode(true);
-  
-  // 코드 블록, 스크립트, 스타일 등 불필요한 요소 제거
-  const unwantedTags = ['script', 'style', 'svg', 'canvas', 'button'];
-  unwantedTags.forEach(tag => {
-    const elements = clone.getElementsByTagName(tag);
-    for (let i = elements.length - 1; i >= 0; i--) {
-      elements[i].remove();
-    }
-  });
-  
-  // 텍스트 노드만 추출하여 정리
-  return clone.textContent
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * 버전 확인 함수
- * @returns {string} 확장 프로그램 버전
- */
-function getExtensionVersion() {
-  try {
-    // manifest.json에서 버전 정보 획득 시도
-    if (chrome && chrome.runtime && chrome.runtime.getManifest) {
-      return chrome.runtime.getManifest().version;
-    }
-  } catch (e) {
-    // 브라우저 API를 사용할 수 없는 경우
-  }
-  
-  // 기본값 반환
-  return '1.3.0';
-}
-
-/**
- * 브라우저 환경 확인
- * @returns {Object} 브라우저 정보
- */
-function getBrowserInfo() {
+// 브라우저 정보 가져오기
+export function getBrowserInfo() {
   const userAgent = navigator.userAgent;
-  let browserName = 'Unknown';
-  let browserVersion = 'Unknown';
+  let browserName = "Unknown";
+  let browserVersion = "Unknown";
   
-  // Chrome
-  if (userAgent.match(/chrome|chromium|crios/i)) {
-    browserName = 'Chrome';
-    const match = userAgent.match(/(?:chrome|chromium|crios)\/(\d+)/i);
-    if (match && match[1]) browserVersion = match[1];
-  } 
-  // Firefox
-  else if (userAgent.match(/firefox|fxios/i)) {
-    browserName = 'Firefox';
-    const match = userAgent.match(/(?:firefox|fxios)\/(\d+)/i);
-    if (match && match[1]) browserVersion = match[1];
-  }
-  // Safari
-  else if (userAgent.match(/safari/i) && !userAgent.match(/chrome|chromium|crios/i)) {
-    browserName = 'Safari';
-    const match = userAgent.match(/version\/(\d+)/i);
-    if (match && match[1]) browserVersion = match[1];
-  }
-  // Edge
-  else if (userAgent.match(/edg/i)) {
-    browserName = 'Edge';
-    const match = userAgent.match(/edg\/(\d+)/i);
-    if (match && match[1]) browserVersion = match[1];
+  if (userAgent.indexOf("Chrome") > -1) {
+    browserName = "Chrome";
+    browserVersion = userAgent.match(/Chrome\/([0-9.]+)/)[1];
+  } else if (userAgent.indexOf("Firefox") > -1) {
+    browserName = "Firefox";
+    browserVersion = userAgent.match(/Firefox\/([0-9.]+)/)[1];
+  } else if (userAgent.indexOf("Safari") > -1) {
+    browserName = "Safari";
+    browserVersion = userAgent.match(/Version\/([0-9.]+)/)[1];
+  } else if (userAgent.indexOf("Edge") > -1) {
+    browserName = "Edge";
+    browserVersion = userAgent.match(/Edge\/([0-9.]+)/)[1];
   }
   
   return {
@@ -245,57 +63,237 @@ function getBrowserInfo() {
   };
 }
 
-/**
- * DOM에서 요소가 로드될 때까지 기다림
- * @param {string} selector - CSS 선택자
- * @param {number} timeout - 최대 대기 시간 (밀리초)
- * @returns {Promise<Element>} 발견된 요소
- */
-function waitForElement(selector, timeout = 10000) {
-  return new Promise((resolve, reject) => {
-    // 이미 존재하는 요소가 있는지 확인
-    const element = document.querySelector(selector);
-    if (element) {
-      return resolve(element);
-    }
-    
-    // 타임아웃 ID
-    let timeoutId;
-    
-    // 요소를 감시할 옵저버 생성
-    const observer = new MutationObserver((mutations, obs) => {
-      const element = document.querySelector(selector);
-      if (element) {
-        // 요소를 찾으면 리소스 정리 후 해결
-        obs.disconnect();
-        clearTimeout(timeoutId);
-        resolve(element);
-      }
-    });
-    
-    // 전체 문서 감시 시작
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true
-    });
-    
-    // 타임아웃 설정
-    timeoutId = setTimeout(() => {
-      observer.disconnect();
-      reject(new Error(`요소를 찾을 수 없음: ${selector} (${timeout}ms 초과)`));
-    }, timeout);
-  });
+// 다크 모드 감지
+export function isDarkMode() {
+  // 1. 로컬 스토리지에서 사용자 설정 확인
+  const settings = getSettings();
+  if (settings && settings.darkMode !== null) {
+    return settings.darkMode;
+  }
+  
+  // 2. 문서 body의 클래스 확인 (ChatGPT 사이트 특화)
+  if (document.body.classList.contains('dark')) {
+    return true;
+  }
+  
+  // 3. 시스템 다크 모드 설정 확인
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-// 전역 변수로 노출 (Chrome 확장 프로그램에서 사용하기 위함)
-window.Utils = {
+// 로컬 스토리지에서 설정 가져오기
+export function getSettings() {
+  try {
+    const settingsJson = localStorage.getItem('chatgpt-inline-view-settings');
+    return settingsJson ? JSON.parse(settingsJson) : null;
+  } catch (error) {
+    logError('설정을 가져오는 중 오류 발생', error);
+    return null;
+  }
+}
+
+// 로컬 스토리지에 설정 저장
+export function saveSettings(settings) {
+  try {
+    localStorage.setItem('chatgpt-inline-view-settings', JSON.stringify(settings));
+    return true;
+  } catch (error) {
+    logError('설정을 저장하는 중 오류 발생', error);
+    return false;
+  }
+}
+
+// DOM 요소 생성 헬퍼
+export function createElement(tag, attributes = {}, children = []) {
+  const element = document.createElement(tag);
+  
+  // 속성 설정
+  Object.entries(attributes).forEach(([key, value]) => {
+    if (key === 'className') {
+      element.className = value;
+    } else if (key === 'style' && typeof value === 'object') {
+      Object.assign(element.style, value);
+    } else if (key.startsWith('on') && typeof value === 'function') {
+      const eventName = key.substring(2).toLowerCase();
+      element.addEventListener(eventName, value);
+    } else {
+      element.setAttribute(key, value);
+    }
+  });
+  
+  // 자식 요소 추가
+  children.forEach(child => {
+    if (typeof child === 'string') {
+      element.appendChild(document.createTextNode(child));
+    } else if (child instanceof Node) {
+      element.appendChild(child);
+    }
+  });
+  
+  return element;
+}
+
+// 텍스트 내용 요약 (긴 텍스트 처리)
+export function summarizeText(text, maxLength = 100) {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  
+  return text.substring(0, maxLength - 3) + '...';
+}
+
+// HTML 이스케이프
+export function escapeHTML(html) {
+  const div = document.createElement('div');
+  div.textContent = html;
+  return div.innerHTML;
+}
+
+// 알림 표시
+export function showNotification(message, type = 'info', duration = 3000) {
+  // 기존 알림 확인
+  let notification = document.getElementById('chatgpt-inline-view-notification');
+  
+  // 없으면 생성
+  if (!notification) {
+    notification = createElement('div', {
+      id: 'chatgpt-inline-view-notification',
+      style: {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        padding: '10px 15px',
+        borderRadius: '4px',
+        color: 'white',
+        fontSize: '14px',
+        zIndex: '10000',
+        transition: 'opacity 0.3s ease',
+        opacity: '0'
+      }
+    });
+    document.body.appendChild(notification);
+  }
+  
+  // 타입에 따른 스타일 설정
+  let backgroundColor;
+  switch (type) {
+    case 'success':
+      backgroundColor = '#4CAF50';
+      break;
+    case 'error':
+      backgroundColor = '#F44336';
+      break;
+    case 'warning':
+      backgroundColor = '#FF9800';
+      break;
+    default:
+      backgroundColor = '#2196F3';
+  }
+  notification.style.backgroundColor = backgroundColor;
+  
+  // 메시지 설정
+  notification.textContent = message;
+  
+  // 표시
+  setTimeout(() => {
+    notification.style.opacity = '1';
+  }, 10);
+  
+  // 자동 숨김
+  setTimeout(() => {
+    notification.style.opacity = '0';
+  }, duration);
+}
+
+// 오류 알림 표시
+export function showErrorNotification(message) {
+  showNotification(message, 'error', 5000);
+}
+
+// 성공 알림 표시
+export function showSuccessNotification(message) {
+  showNotification(message, 'success', 3000);
+}
+
+// 경고 알림 표시
+export function showWarningNotification(message) {
+  showNotification(message, 'warning', 4000);
+}
+
+// 현재 URL 가져오기
+export function getCurrentURL() {
+  return window.location.href;
+}
+
+// 두 URL이 같은 대화인지 확인
+export function isSameConversation(url1, url2) {
+  // ChatGPT URL 형식: https://chat.openai.com/c/[conversation-id]
+  const getConversationId = (url) => {
+    const match = url.match(/\/c\/([a-zA-Z0-9-]+)/);
+    return match ? match[1] : null;
+  };
+  
+  const id1 = getConversationId(url1);
+  const id2 = getConversationId(url2);
+  
+  return id1 && id2 && id1 === id2;
+}
+
+// 지연 실행 (디바운스)
+export function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    const context = this;
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), wait);
+  };
+}
+
+// 제한된 빈도로 실행 (쓰로틀)
+export function throttle(func, limit) {
+  let inThrottle;
+  return function(...args) {
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
+}
+
+// 로컬 스토리지 사용 가능 여부 확인
+export function isLocalStorageAvailable() {
+  try {
+    const test = '__test__';
+    localStorage.setItem(test, test);
+    localStorage.removeItem(test);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 기본 내보내기
+export default {
+  VERSION,
+  setDebugMode,
   logDebug,
   logError,
-  showErrorNotification,
-  throttle,
-  debounce,
-  extractTextContent,
+  logWarning,
   getExtensionVersion,
   getBrowserInfo,
-  waitForElement
+  isDarkMode,
+  getSettings,
+  saveSettings,
+  createElement,
+  summarizeText,
+  escapeHTML,
+  showNotification,
+  showErrorNotification,
+  showSuccessNotification,
+  showWarningNotification,
+  getCurrentURL,
+  isSameConversation,
+  debounce,
+  throttle,
+  isLocalStorageAvailable
 }; 

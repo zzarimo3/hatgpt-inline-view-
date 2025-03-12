@@ -1,155 +1,188 @@
 /**
  * ChatGPT 인라인 뷰 - DOM 분석기 모듈
- * ChatGPT 웹사이트의 DOM 구조를 분석하고 필요한 요소를 찾아내는 기능 제공
+ * ChatGPT 페이지의 DOM 구조를 분석하여 대화 내용을 추출합니다.
  */
 
-// DOM 분석 모듈
-const DOMAnalyzer = {
-  // 메시지 요소 찾기
-  findChatElements() {
-    Utils.logDebug("[DOMAnalyzer] ChatGPT 메시지 요소 탐색 시작...");
-    
-    // 방법 1: data-testid 속성을 사용하는 최신 버전의 ChatGPT UI
-    const conversationTurns = Array.from(
-      document.querySelectorAll('[data-testid^="conversation-turn-"]')
-    );
-    
-    // 대화 턴 요소가 존재하는 경우
-    if (conversationTurns.length > 0) {
-      const result = {
-        userMessages: conversationTurns.filter(
-          turn => turn.getAttribute('data-message-author-role') === 'user'
-        ),
-        assistantMessages: conversationTurns.filter(
-          turn => turn.getAttribute('data-message-author-role') === 'assistant'
-        )
-      };
-      
-      Utils.logDebug(`[DOMAnalyzer] 탐색 결과: 사용자 메시지 ${result.userMessages.length}개, 어시스턴트 메시지 ${result.assistantMessages.length}개 발견`);
-      return result;
-    }
-    
-    // 방법 2: 역할 속성을 직접 사용하는 대체 선택자
-    Utils.logDebug("[DOMAnalyzer] 대화 턴 요소를 찾을 수 없음, 대체 선택자 시도...");
-    
-    const userMessages = document.querySelectorAll('div[data-message-author-role="user"]');
-    const assistantMessages = document.querySelectorAll('div[data-message-author-role="assistant"]');
-    
-    if (userMessages.length > 0 || assistantMessages.length > 0) {
-      Utils.logDebug(`[DOMAnalyzer] 대체 선택자로 발견: 사용자 메시지 ${userMessages.length}개, 어시스턴트 메시지 ${assistantMessages.length}개`);
-      return { userMessages, assistantMessages };
-    }
-    
-    // 방법 3: DOM 구조 분석을 통한 추론
-    Utils.logDebug("[DOMAnalyzer] 표준 선택자로 메시지를 찾을 수 없음, 구조 추론 시도...");
-    
-    // 가능한 대화 컨테이너 목록
-    const possibleContainers = [
-      ...document.querySelectorAll('main > div > div'),
-      ...document.querySelectorAll('.flex.flex-col.items-center'),
-      ...document.querySelectorAll('.text-token-text-primary'),
-      ...document.querySelectorAll('.markdown')
-    ];
-    
-    // 대화형 패턴 탐지 (번갈아 나타나는 자식 요소들)
-    for (const container of possibleContainers) {
-      const children = Array.from(container.children).filter(el => el.tagName === 'DIV');
-      
-      if (children.length >= 2) {
-        // 패턴 분석: 홀수/짝수 인덱스로 분류
-        const odd = children.filter((_, i) => i % 2 === 0);
-        const even = children.filter((_, i) => i % 2 === 1);
-        
-        // 두 그룹이 모두 존재하는 경우
-        if (odd.length > 0 && even.length > 0) {
-          Utils.logDebug("[DOMAnalyzer] 패턴 추론으로 메시지 발견: 패턴별 구분");
-          
-          // 첫 번째 요소 분석으로 사용자/어시스턴트 역할 추론
-          const firstElementClasses = odd[0].className;
-          const secondElementClasses = even[0].className;
-          
-          // 클래스명이나 내용으로 사용자/어시스턴트 역할 추론
-          const isFirstUser = 
-            firstElementClasses.includes('user') || 
-            firstElementClasses.includes('right') ||
-            odd[0].querySelector('.user-message');
-            
-          return isFirstUser
-            ? { userMessages: odd, assistantMessages: even }
-            : { userMessages: even, assistantMessages: odd };
-        }
-      }
-    }
-    
-    // 하나도 찾지 못한 경우
-    Utils.logDebug("[DOMAnalyzer] 메시지 요소를 찾을 수 없음");
-    return { userMessages: [], assistantMessages: [] };
-  },
-  
-  // 대화 내용 추출 (텍스트만)
-  extractMessageContent(messageElement) {
-    if (!messageElement) return '';
-    
-    // Utils의 extractTextContent 함수 사용
-    return Utils.extractTextContent(messageElement);
-  },
-  
-  // 메인 컨테이너 찾기
-  findMainContainer() {
-    // 가능한 메인 컨테이너 선택자들
-    const possibleSelectors = [
-      'main',
-      'main > div',
-      '.flex.flex-col.items-center',
-      'div[role="main"]',
-      '#__next > div > div.flex.h-full.flex-col'
-    ];
-    
-    for (const selector of possibleSelectors) {
-      const container = document.querySelector(selector);
-      if (container) {
-        return container;
-      }
-    }
-    
-    // 컨테이너를 찾지 못한 경우 기본값
-    return document.body;
-  },
-  
-  // DOM 구조 분석 로깅 (디버깅용)
-  logDOMStructure() {
-    Utils.logDebug("[DOMAnalyzer] ChatGPT DOM 구조 분석 시작...");
-    
-    // 주요 컨테이너 로깅
-    const mainElement = document.querySelector('main');
-    Utils.logDebug("[DOMAnalyzer] 메인 요소:", mainElement);
-    
-    if (mainElement) {
-      // 첫번째 레벨 자식 요소 로깅
-      Utils.logDebug("[DOMAnalyzer] 메인 요소 자식들:", Array.from(mainElement.children));
-      
-      // 대화 턴 요소 찾기
-      const conversationTurns = mainElement.querySelectorAll('[data-testid^="conversation-turn-"]');
-      Utils.logDebug(`[DOMAnalyzer] 대화 턴 수: ${conversationTurns.length}`);
-      
-      if (conversationTurns.length > 0) {
-        // 첫번째 대화 턴 분석
-        const firstTurn = conversationTurns[0];
-        Utils.logDebug("[DOMAnalyzer] 첫번째 대화 턴:", firstTurn);
-        Utils.logDebug("[DOMAnalyzer] 첫번째 대화 턴 속성:", {
-          role: firstTurn.getAttribute('data-message-author-role'),
-          id: firstTurn.getAttribute('data-testid'),
-          class: firstTurn.className
-        });
-      }
-    }
-    
-    // 역할별 메시지 요소 찾기
-    this.findChatElements();
-    
-    Utils.logDebug("[DOMAnalyzer] DOM 구조 분석 완료");
-  }
+import * as Utils from './utils.js';
+
+// 대화 메시지 타입
+export const MessageType = {
+  USER: 'user',
+  ASSISTANT: 'assistant',
+  SYSTEM: 'system'
 };
 
-// 전역 변수로 노출 (Chrome 확장 프로그램에서 사용하기 위함)
-window.DOMAnalyzer = DOMAnalyzer; 
+// 대화 메시지 클래스
+export class ChatMessage {
+  constructor(type, content, timestamp = new Date()) {
+    this.type = type;
+    this.content = content;
+    this.timestamp = timestamp;
+    this.id = `msg_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  }
+}
+
+// DOM 분석기 클래스
+class DOMAnalyzer {
+  constructor() {
+    // 마지막으로 분석한 메시지 수
+    this.lastMessageCount = 0;
+    
+    // 메시지 선택자 (ChatGPT DOM 구조에 맞춤)
+    this.selectors = {
+      // 메인 채팅 컨테이너
+      chatContainer: '.flex.flex-col.items-center.text-sm.dark\\:bg-gray-800',
+      
+      // 대화 항목 컨테이너
+      conversationItems: '.flex.flex-col.items-center.text-sm.dark\\:bg-gray-800 > div',
+      
+      // 사용자 메시지
+      userMessages: '.flex.flex-col.items-center.text-sm.dark\\:bg-gray-800 div[data-message-author-role="user"]',
+      
+      // 어시스턴트 메시지
+      assistantMessages: '.flex.flex-col.items-center.text-sm.dark\\:bg-gray-800 div[data-message-author-role="assistant"]',
+      
+      // 메시지 내용
+      messageContent: '.markdown'
+    };
+  }
+  
+  /**
+   * 현재 페이지에서 모든 대화 메시지를 추출합니다.
+   * @returns {ChatMessage[]} 추출된 대화 메시지 배열
+   */
+  extractConversation() {
+    try {
+      const messages = [];
+      
+      // 사용자 메시지 추출
+      const userElements = document.querySelectorAll(this.selectors.userMessages);
+      userElements.forEach(element => {
+        const contentElement = element.querySelector(this.selectors.messageContent);
+        if (contentElement) {
+          const content = contentElement.innerHTML;
+          messages.push(new ChatMessage(MessageType.USER, content));
+        }
+      });
+      
+      // 어시스턴트 메시지 추출
+      const assistantElements = document.querySelectorAll(this.selectors.assistantMessages);
+      assistantElements.forEach(element => {
+        const contentElement = element.querySelector(this.selectors.messageContent);
+        if (contentElement) {
+          const content = contentElement.innerHTML;
+          messages.push(new ChatMessage(MessageType.ASSISTANT, content));
+        }
+      });
+      
+      // 메시지 순서 정렬 (사용자와 어시스턴트 메시지 번갈아가며 표시)
+      messages.sort((a, b) => {
+        const indexA = Array.from(document.querySelectorAll(this.selectors.conversationItems)).findIndex(
+          el => el.textContent.includes(a.content.replace(/<[^>]*>/g, ''))
+        );
+        const indexB = Array.from(document.querySelectorAll(this.selectors.conversationItems)).findIndex(
+          el => el.textContent.includes(b.content.replace(/<[^>]*>/g, ''))
+        );
+        return indexA - indexB;
+      });
+      
+      // 메시지 수 업데이트
+      this.lastMessageCount = messages.length;
+      
+      return messages;
+    } catch (error) {
+      Utils.logError('대화 추출 중 오류 발생', error);
+      return [];
+    }
+  }
+  
+  /**
+   * 새로운 메시지가 있는지 확인합니다.
+   * @returns {boolean} 새 메시지 존재 여부
+   */
+  hasNewMessages() {
+    try {
+      const currentCount = document.querySelectorAll(
+        `${this.selectors.userMessages}, ${this.selectors.assistantMessages}`
+      ).length;
+      
+      return currentCount !== this.lastMessageCount;
+    } catch (error) {
+      Utils.logError('새 메시지 확인 중 오류 발생', error);
+      return false;
+    }
+  }
+  
+  /**
+   * 현재 페이지가 ChatGPT 대화 페이지인지 확인합니다.
+   * @returns {boolean} ChatGPT 대화 페이지 여부
+   */
+  isChatPage() {
+    try {
+      // URL 확인
+      const url = window.location.href;
+      const isChatURL = url.includes('chat.openai.com') || url.includes('chatgpt.com');
+      
+      // DOM 구조 확인
+      const hasChatContainer = !!document.querySelector(this.selectors.chatContainer);
+      
+      return isChatURL && hasChatContainer;
+    } catch (error) {
+      Utils.logError('채팅 페이지 확인 중 오류 발생', error);
+      return false;
+    }
+  }
+  
+  /**
+   * 인라인 뷰를 삽입할 위치를 찾습니다.
+   * @returns {Element|null} 삽입 위치 요소
+   */
+  findInsertionPoint() {
+    try {
+      // 메인 채팅 컨테이너 찾기
+      const chatContainer = document.querySelector(this.selectors.chatContainer);
+      
+      if (chatContainer) {
+        // 첫 번째 대화 항목 이전에 삽입
+        const firstConversationItem = chatContainer.querySelector('div');
+        if (firstConversationItem) {
+          return firstConversationItem;
+        }
+        
+        // 대화 항목이 없으면 컨테이너 자체를 반환
+        return chatContainer;
+      }
+      
+      return null;
+    } catch (error) {
+      Utils.logError('삽입 위치 찾기 중 오류 발생', error);
+      return null;
+    }
+  }
+  
+  /**
+   * 현재 테마(다크/라이트 모드)를 감지합니다.
+   * @returns {string} 'dark' 또는 'light'
+   */
+  detectTheme() {
+    try {
+      // 사용자 설정 확인
+      const settings = Utils.getSettings();
+      if (settings && settings.theme !== 'auto') {
+        return settings.theme;
+      }
+      
+      // 다크 모드 감지
+      return Utils.isDarkMode() ? 'dark' : 'light';
+    } catch (error) {
+      Utils.logError('테마 감지 중 오류 발생', error);
+      return 'light'; // 기본값
+    }
+  }
+}
+
+// 싱글톤 인스턴스 생성
+const instance = new DOMAnalyzer();
+
+// 기본 내보내기
+export default instance; 

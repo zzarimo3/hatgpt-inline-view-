@@ -1,450 +1,321 @@
 /**
  * ChatGPT 인라인 뷰 - UI 관리자 모듈
- * 인라인 뷰 생성 및 관리, UI 컴포넌트 관련 기능
+ * 인라인 뷰 UI 요소 생성 및 관리
  */
 
-// 기본 설정값
-const DEFAULT_SETTINGS = {
-  enabled: true,        // 확장 프로그램 활성화 여부
-  darkMode: null,       // 다크모드 (null: 시스템 설정 따름, true: 강제 다크모드, false: 강제 라이트모드)
-  compactView: false,   // 압축 보기
-  showLineNumbers: true // 줄 번호 표시
-};
+import * as Utils from './utils.js';
+import DOMAnalyzer, { MessageType } from './dom-analyzer.js';
 
-// UI 관리자 모듈
-const UIManager = {
-  // 현재 설정
-  settings: { ...DEFAULT_SETTINGS },
-  
-  // 인라인 뷰 컨테이너 요소
-  container: null,
-  
-  // 초기화
-  init(userSettings = {}) {
-    // 사용자 설정과 기본값 병합
-    this.settings = { ...DEFAULT_SETTINGS, ...userSettings };
+// UI 관리자 클래스
+class UIManager {
+  constructor() {
+    // 인라인 뷰 컨테이너 요소
+    this.container = null;
+    
+    // 현재 테마 (dark/light)
+    this.currentTheme = 'light';
+    
+    // 압축 보기 모드 상태
+    this.compactViewEnabled = false;
+    
+    // 줄 번호 표시 상태
+    this.showLineNumbers = true;
+    
+    // 설정 로드
     this.loadSettings();
-    this.createToggleButton();
-    
-    Utils.logDebug("[UIManager] 초기화 완료, 설정:", this.settings);
-    return this;
-  },
+  }
   
-  // 로컬 스토리지에서 설정 불러오기
+  /**
+   * 설정 로드
+   */
   loadSettings() {
-    try {
-      const savedSettings = localStorage.getItem('chatgpt-inline-view-settings');
-      if (savedSettings) {
-        this.settings = { ...this.settings, ...JSON.parse(savedSettings) };
-        Utils.logDebug("[UIManager] 설정 불러옴:", this.settings);
-      }
-    } catch (error) {
-      Utils.logError("[UIManager] 설정 로드 중 오류", error);
+    const settings = Utils.getSettings();
+    if (settings) {
+      this.compactViewEnabled = settings.compactView || false;
+      this.showLineNumbers = settings.showLineNumbers !== undefined ? settings.showLineNumbers : true;
     }
-  },
+  }
   
-  // 로컬 스토리지에 설정 저장
-  saveSettings() {
-    try {
-      localStorage.setItem('chatgpt-inline-view-settings', JSON.stringify(this.settings));
-      Utils.logDebug("[UIManager] 설정 저장됨:", this.settings);
-    } catch (error) {
-      Utils.logError("[UIManager] 설정 저장 중 오류", error);
-    }
-  },
+  /**
+   * UI 초기화
+   */
+  init() {
+    Utils.logDebug('UI 관리자 초기화');
+    this.loadSettings();
+    this.detectTheme();
+  }
   
-  // 토글 버튼 생성 (확장 프로그램 활성화/비활성화)
-  createToggleButton() {
-    // 기존 버튼 제거
-    const existingButton = document.getElementById('chatgpt-inline-view-toggle');
-    if (existingButton) {
-      existingButton.remove();
+  /**
+   * 테마 감지 및 적용
+   */
+  detectTheme() {
+    this.currentTheme = DOMAnalyzer.detectTheme();
+    Utils.logDebug(`테마 감지: ${this.currentTheme}`);
+    
+    // 기존 컨테이너가 있으면 테마 적용
+    if (this.container) {
+      this.applyTheme();
     }
-    
-    // 새 버튼 생성
-    const button = document.createElement('button');
-    button.id = 'chatgpt-inline-view-toggle';
-    button.textContent = this.settings.enabled ? '인라인 뷰 OFF' : '인라인 뷰 ON';
-    button.title = '인라인 뷰 켜기/끄기';
-    
-    // 스타일 적용
-    Object.assign(button.style, {
-      position: 'fixed',
-      right: '20px',
-      bottom: '20px',
-      zIndex: '1000',
-      padding: '8px 12px',
-      borderRadius: '6px',
-      border: 'none',
-      backgroundColor: this.settings.enabled ? '#10a37f' : '#666',
-      color: 'white',
-      fontWeight: 'bold',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
-      cursor: 'pointer'
-    });
-    
-    // 클릭 이벤트 처리
-    button.addEventListener('click', () => {
-      this.settings.enabled = !this.settings.enabled;
-      button.textContent = this.settings.enabled ? '인라인 뷰 OFF' : '인라인 뷰 ON';
-      button.style.backgroundColor = this.settings.enabled ? '#10a37f' : '#666';
-      
-      if (this.settings.enabled) {
-        // 활성화 되면 빈 컨테이너 표시
-        this.showInlineView();
-      } else {
-        // 비활성화 되면 컨테이너 제거
-        this.removeInlineView();
-      }
-      
-      this.saveSettings();
-    });
-    
-    // 페이지에 추가
-    document.body.appendChild(button);
-    Utils.logDebug("[UIManager] 토글 버튼 생성됨");
-  },
+  }
   
-  // 설정 패널 생성
-  createSettingsPanel() {
-    // 기존 패널 제거
-    const existingPanel = document.getElementById('chatgpt-inline-view-settings');
-    if (existingPanel) {
-      existingPanel.remove();
-    }
+  /**
+   * 테마 적용
+   */
+  applyTheme() {
+    if (!this.container) return;
     
-    // 패널 컨테이너 생성
-    const panel = document.createElement('div');
-    panel.id = 'chatgpt-inline-view-settings';
+    // 모든 테마 클래스 제거
+    this.container.classList.remove('light-mode', 'dark-mode');
     
-    // 패널 스타일
-    Object.assign(panel.style, {
-      position: 'fixed',
-      right: '20px',
-      bottom: '70px',
-      zIndex: '1000',
-      width: '300px',
-      padding: '15px',
-      backgroundColor: 'white',
-      borderRadius: '8px',
-      boxShadow: '0 5px 20px rgba(0,0,0,0.3)',
-      display: 'none'
-    });
-    
-    // 제목
-    const title = document.createElement('h3');
-    title.textContent = '인라인 뷰 설정';
-    title.style.marginTop = '0';
-    panel.appendChild(title);
-    
-    // 옵션들 생성
-    const options = [
-      {
-        id: 'darkMode',
-        label: '다크 모드',
-        type: 'select',
-        options: [
-          { value: 'null', label: '시스템 설정 따름' },
-          { value: 'true', label: '다크 모드' },
-          { value: 'false', label: '라이트 모드' }
-        ]
-      },
-      {
-        id: 'compactView',
-        label: '압축 보기',
-        type: 'checkbox'
-      },
-      {
-        id: 'showLineNumbers',
-        label: '줄 번호 표시',
-        type: 'checkbox'
-      }
-    ];
-    
-    // 옵션 UI 생성
-    options.forEach(option => {
-      const row = document.createElement('div');
-      row.style.margin = '10px 0';
-      
-      const label = document.createElement('label');
-      label.textContent = option.label;
-      label.style.display = 'block';
-      label.style.marginBottom = '5px';
-      
-      row.appendChild(label);
-      
-      if (option.type === 'checkbox') {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = this.settings[option.id];
-        checkbox.addEventListener('change', () => {
-          this.settings[option.id] = checkbox.checked;
-          this.saveSettings();
-          this.updateInlineView();
-        });
-        row.appendChild(checkbox);
-      } else if (option.type === 'select') {
-        const select = document.createElement('select');
-        select.style.width = '100%';
-        select.style.padding = '5px';
-        
-        option.options.forEach(opt => {
-          const optElement = document.createElement('option');
-          optElement.value = opt.value;
-          optElement.textContent = opt.label;
-          optElement.selected = String(this.settings[option.id]) === opt.value;
-          select.appendChild(optElement);
-        });
-        
-        select.addEventListener('change', () => {
-          const value = select.value === 'null' ? null : select.value === 'true';
-          this.settings[option.id] = value;
-          this.saveSettings();
-          this.updateInlineView();
-        });
-        
-        row.appendChild(select);
-      }
-      
-      panel.appendChild(row);
-    });
-    
-    // 닫기 버튼
-    const closeButton = document.createElement('button');
-    closeButton.textContent = '닫기';
-    closeButton.style.width = '100%';
-    closeButton.style.padding = '8px';
-    closeButton.style.marginTop = '15px';
-    closeButton.style.backgroundColor = '#10a37f';
-    closeButton.style.color = 'white';
-    closeButton.style.border = 'none';
-    closeButton.style.borderRadius = '4px';
-    closeButton.style.cursor = 'pointer';
-    
-    closeButton.addEventListener('click', () => {
-      panel.style.display = 'none';
-    });
-    
-    panel.appendChild(closeButton);
-    
-    // 페이지에 추가
-    document.body.appendChild(panel);
-    
-    // 설정 버튼에 연결
-    const settingsButton = document.getElementById('chatgpt-inline-view-settings-btn');
-    if (settingsButton) {
-      settingsButton.addEventListener('click', () => {
-        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-      });
-    }
-    
-    return panel;
-  },
+    // 현재 테마 클래스 추가
+    this.container.classList.add(`${this.currentTheme}-mode`);
+  }
   
-  // 인라인 뷰 생성
-  createInlineView(userMessages, assistantMessages) {
-    // 설정이 비활성화된 경우 생성하지 않음
-    if (!this.settings.enabled) {
-      Utils.logDebug("[UIManager] 인라인 뷰 비활성화됨, 생성 취소");
-      return null;
-    }
+  /**
+   * 인라인 뷰 생성
+   * @param {Array} messages - 대화 메시지 배열
+   */
+  createInlineView(messages) {
+    Utils.logDebug('인라인 뷰 생성 시작');
     
-    Utils.logDebug("[UIManager] 인라인 뷰 생성 시작");
-    
-    // 기존 뷰 제거
+    // 기존 인라인 뷰 제거
     this.removeInlineView();
     
-    // 메시지 쌍 생성
-    const messagePairs = [];
-    const minLength = Math.min(userMessages.length, assistantMessages.length);
-    
-    for (let i = 0; i < minLength; i++) {
-      messagePairs.push({
-        user: userMessages[i],
-        assistant: assistantMessages[i]
-      });
+    // 삽입 위치 찾기
+    const insertionPoint = DOMAnalyzer.findInsertionPoint();
+    if (!insertionPoint) {
+      Utils.logError('인라인 뷰 삽입 위치를 찾을 수 없음');
+      return;
     }
     
     // 컨테이너 생성
-    const container = document.createElement('div');
-    container.id = 'chatgpt-inline-view-container';
-    this.container = container;
+    this.container = Utils.createElement('div', {
+      id: 'chatgpt-inline-view-container',
+      className: `${this.currentTheme}-mode ${this.compactViewEnabled ? 'compact-view' : ''}`
+    });
     
-    // 다크모드 설정 적용
-    const isDarkMode = this.settings.darkMode === null 
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches 
-      : this.settings.darkMode;
+    // 헤더 추가
+    const header = this.createHeader();
+    this.container.appendChild(header);
     
-    if (isDarkMode) {
-      container.classList.add('dark-mode');
+    // 메시지가 없는 경우
+    if (!messages || messages.length === 0) {
+      const emptyMessage = Utils.createElement('div', {
+        className: 'inline-view-empty-message'
+      }, ['아직 대화 내용이 없습니다. 대화를 시작하면 여기에 표시됩니다.']);
+      
+      this.container.appendChild(emptyMessage);
     } else {
-      container.classList.add('light-mode');
+      // 메시지 행 추가
+      messages.forEach((message, index) => {
+        const chatRow = this.createChatRow(message, index);
+        this.container.appendChild(chatRow);
+      });
     }
     
-    // 압축 보기 설정 적용
-    if (this.settings.compactView) {
-      container.classList.add('compact-view');
-    }
+    // 삽입 위치에 추가
+    insertionPoint.parentNode.insertBefore(this.container, insertionPoint);
     
-    // 헤더 영역 생성
-    const header = document.createElement('div');
-    header.className = 'inline-view-header';
+    Utils.logDebug('인라인 뷰 생성 완료');
+  }
+  
+  /**
+   * 헤더 생성
+   * @returns {HTMLElement} 헤더 요소
+   */
+  createHeader() {
+    const header = Utils.createElement('div', {
+      className: 'inline-view-header'
+    });
     
     // 제목
-    const title = document.createElement('h2');
-    title.textContent = 'ChatGPT 인라인 뷰';
-    title.className = 'inline-view-title';
+    const title = Utils.createElement('h2', {
+      className: 'inline-view-title'
+    }, ['ChatGPT 인라인 뷰']);
+    
+    // 버튼 컨테이너
+    const buttonContainer = Utils.createElement('div', {
+      className: 'inline-view-buttons'
+    });
+    
+    // 압축 보기 토글 버튼
+    const toggleCompactButton = Utils.createElement('button', {
+      className: 'inline-view-toggle-btn',
+      title: this.compactViewEnabled ? '확장 보기로 전환' : '압축 보기로 전환',
+      onclick: () => this.toggleCompactView()
+    }, [this.compactViewEnabled ? '확장 보기' : '압축 보기']);
     
     // 설정 버튼
-    const settingsButton = document.createElement('button');
-    settingsButton.id = 'chatgpt-inline-view-settings-btn';
-    settingsButton.innerHTML = '⚙️';
-    settingsButton.title = '설정';
-    settingsButton.className = 'inline-view-settings-btn';
+    const settingsButton = Utils.createElement('button', {
+      className: 'inline-view-settings-btn',
+      title: '설정',
+      onclick: () => this.openSettings()
+    }, ['설정']);
     
-    // 토글 버튼
-    const toggleViewButton = document.createElement('button');
-    toggleViewButton.id = 'chatgpt-inline-view-toggle-view';
-    toggleViewButton.textContent = '접기';
-    toggleViewButton.className = 'inline-view-toggle-btn';
+    // 버튼 추가
+    buttonContainer.appendChild(toggleCompactButton);
+    buttonContainer.appendChild(settingsButton);
     
     // 헤더에 요소 추가
     header.appendChild(title);
-    header.appendChild(settingsButton);
-    header.appendChild(toggleViewButton);
-    container.appendChild(header);
+    header.appendChild(buttonContainer);
     
-    // 콘텐츠 영역 생성
-    const contentDiv = document.createElement('div');
-    contentDiv.id = 'chatgpt-inline-view-content';
-    container.appendChild(contentDiv);
-    
-    // 토글 기능 설정
-    toggleViewButton.addEventListener('click', () => {
-      if (contentDiv.style.display === 'none') {
-        contentDiv.style.display = 'block';
-        toggleViewButton.textContent = '접기';
-      } else {
-        contentDiv.style.display = 'none';
-        toggleViewButton.textContent = '펼치기';
-      }
+    return header;
+  }
+  
+  /**
+   * 채팅 행 생성
+   * @param {Object} message - 메시지 객체
+   * @param {number} index - 메시지 인덱스
+   * @returns {HTMLElement} 채팅 행 요소
+   */
+  createChatRow(message, index) {
+    const row = Utils.createElement('div', {
+      className: 'chat-row',
+      'data-message-id': message.id
     });
     
-    // 쌍이 없는 경우 안내 메시지
-    if (messagePairs.length === 0) {
-      const emptyMessage = document.createElement('p');
-      emptyMessage.textContent = '대화 내용이 없습니다.';
-      emptyMessage.className = 'inline-view-empty-message';
-      contentDiv.appendChild(emptyMessage);
-    } else {
-      // 메시지 쌍 추가 (DocumentFragment 사용)
-      const fragment = document.createDocumentFragment();
+    // 줄 번호 표시
+    if (this.showLineNumbers) {
+      const lineNumber = Utils.createElement('div', {
+        className: 'chat-row-index'
+      }, [`${index + 1}`]);
       
-      messagePairs.forEach((pair, index) => {
-        try {
-          // 메시지 행 생성
-          const row = document.createElement('div');
-          row.className = 'chat-row';
-          
-          // 줄 번호 표시 (설정에 따라)
-          if (this.settings.showLineNumbers) {
-            const indexLabel = document.createElement('div');
-            indexLabel.textContent = `#${index + 1}`;
-            indexLabel.className = 'chat-row-index';
-            row.appendChild(indexLabel);
-          }
-          
-          // 질문 영역 생성
-          const userDiv = document.createElement('div');
-          userDiv.className = 'chat-user-message';
-          
-          // 답변 영역 생성
-          const assistantDiv = document.createElement('div');
-          assistantDiv.className = 'chat-assistant-message';
-          
-          // 원본 요소에서 콘텐츠 가져오기
-          try {
-            // 사용자 메시지 복제 및 정리
-            const userContent = pair.user.cloneNode(true);
-            // 불필요한 버튼 등 제거
-            userContent.querySelectorAll('button, [data-testid="conversation-turn-header"]').forEach(el => el.remove());
-            userDiv.appendChild(userContent);
-            
-            // 어시스턴트 메시지 복제 및 정리
-            const assistantContent = pair.assistant.cloneNode(true);
-            assistantContent.querySelectorAll('button, [data-testid="conversation-turn-header"]').forEach(el => el.remove());
-            assistantDiv.appendChild(assistantContent);
-          } catch (err) {
-            // 복제 실패 시 텍스트 콘텐츠만 추출
-            userDiv.textContent = Utils.extractTextContent(pair.user) || '(내용을 불러올 수 없습니다)';
-            assistantDiv.textContent = Utils.extractTextContent(pair.assistant) || '(내용을 불러올 수 없습니다)';
-            Utils.logError(`[UIManager] 메시지 #${index} 복제 중 오류`, err);
-          }
-          
-          // 행에 메시지 추가
-          row.appendChild(userDiv);
-          row.appendChild(assistantDiv);
-          fragment.appendChild(row);
-        } catch (err) {
-          Utils.logError(`[UIManager] 메시지 쌍 #${index} 처리 중 오류`, err);
-        }
-      });
-      
-      contentDiv.appendChild(fragment);
+      row.appendChild(lineNumber);
     }
     
-    // 설정 패널 생성
-    this.createSettingsPanel();
-    
-    return container;
-  },
-  
-  // 인라인 뷰 표시
-  showInlineView() {
-    // 컨테이너가 없거나 비활성화된 경우 아무것도 하지 않음
-    if (!this.container || !this.settings.enabled) return;
-    
-    // 적절한 위치에 삽입 (main 요소 아래)
-    const mainElement = document.querySelector('main') || document.body;
-    mainElement.appendChild(this.container);
-    
-    Utils.logDebug("[UIManager] 인라인 뷰 표시됨");
-  },
-  
-  // 인라인 뷰 업데이트
-  updateInlineView() {
-    // 컨테이너가 있고, 표시 중인 경우에만 업데이트
-    if (this.container && this.settings.enabled) {
-      // 다크모드 상태 업데이트
-      const isDarkMode = this.settings.darkMode === null 
-        ? window.matchMedia('(prefers-color-scheme: dark)').matches 
-        : this.settings.darkMode;
-      
-      this.container.classList.toggle('dark-mode', isDarkMode);
-      this.container.classList.toggle('light-mode', !isDarkMode);
-      
-      // 압축 보기 설정 적용
-      this.container.classList.toggle('compact-view', this.settings.compactView);
-      
-      // 줄 번호 표시 설정 적용
-      const indexLabels = this.container.querySelectorAll('.chat-row-index');
-      indexLabels.forEach(label => {
-        label.style.display = this.settings.showLineNumbers ? 'block' : 'none';
+    // 사용자 메시지
+    if (message.type === MessageType.USER) {
+      const userMessage = Utils.createElement('div', {
+        className: 'chat-user-message'
       });
       
-      Utils.logDebug("[UIManager] 인라인 뷰 업데이트됨:", this.settings);
+      userMessage.innerHTML = message.content;
+      row.appendChild(userMessage);
+      
+      // 빈 어시스턴트 메시지 (레이아웃 유지용)
+      const emptyAssistantMessage = Utils.createElement('div', {
+        className: 'chat-assistant-message',
+        style: { visibility: 'hidden' }
+      });
+      
+      row.appendChild(emptyAssistantMessage);
+    } 
+    // 어시스턴트 메시지
+    else if (message.type === MessageType.ASSISTANT) {
+      // 빈 사용자 메시지 (레이아웃 유지용)
+      const emptyUserMessage = Utils.createElement('div', {
+        className: 'chat-user-message',
+        style: { visibility: 'hidden' }
+      });
+      
+      row.appendChild(emptyUserMessage);
+      
+      // 어시스턴트 메시지
+      const assistantMessage = Utils.createElement('div', {
+        className: 'chat-assistant-message'
+      });
+      
+      assistantMessage.innerHTML = message.content;
+      row.appendChild(assistantMessage);
     }
-  },
+    
+    return row;
+  }
   
-  // 인라인 뷰 제거
+  /**
+   * 인라인 뷰 제거
+   */
   removeInlineView() {
-    if (this.container) {
-      this.container.remove();
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
       this.container = null;
-      Utils.logDebug("[UIManager] 인라인 뷰 제거됨");
     }
   }
-};
+  
+  /**
+   * 압축 보기 모드 토글
+   */
+  toggleCompactView() {
+    this.compactViewEnabled = !this.compactViewEnabled;
+    
+    // 설정 저장
+    const settings = Utils.getSettings() || {};
+    settings.compactView = this.compactViewEnabled;
+    Utils.saveSettings(settings);
+    
+    // UI 업데이트
+    if (this.container) {
+      if (this.compactViewEnabled) {
+        this.container.classList.add('compact-view');
+      } else {
+        this.container.classList.remove('compact-view');
+      }
+      
+      // 버튼 텍스트 업데이트
+      const toggleButton = this.container.querySelector('.inline-view-toggle-btn');
+      if (toggleButton) {
+        toggleButton.textContent = this.compactViewEnabled ? '확장 보기' : '압축 보기';
+        toggleButton.title = this.compactViewEnabled ? '확장 보기로 전환' : '압축 보기로 전환';
+      }
+    }
+    
+    Utils.logDebug(`압축 보기 모드 ${this.compactViewEnabled ? '활성화' : '비활성화'}`);
+  }
+  
+  /**
+   * 설정 페이지 열기
+   */
+  openSettings() {
+    if (chrome && chrome.runtime && chrome.runtime.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    } else {
+      Utils.showWarningNotification('설정 페이지를 열 수 없습니다.');
+    }
+  }
+  
+  /**
+   * 인라인 뷰 업데이트
+   * @param {Array} messages - 대화 메시지 배열
+   */
+  updateInlineView(messages) {
+    // 인라인 뷰가 없으면 새로 생성
+    if (!this.container) {
+      this.createInlineView(messages);
+      return;
+    }
+    
+    // 기존 메시지 행 제거
+    const existingRows = this.container.querySelectorAll('.chat-row');
+    existingRows.forEach(row => row.remove());
+    
+    // 빈 메시지 제거
+    const emptyMessage = this.container.querySelector('.inline-view-empty-message');
+    if (emptyMessage) {
+      emptyMessage.remove();
+    }
+    
+    // 메시지가 없는 경우
+    if (!messages || messages.length === 0) {
+      const emptyMessage = Utils.createElement('div', {
+        className: 'inline-view-empty-message'
+      }, ['아직 대화 내용이 없습니다. 대화를 시작하면 여기에 표시됩니다.']);
+      
+      this.container.appendChild(emptyMessage);
+    } else {
+      // 메시지 행 추가
+      messages.forEach((message, index) => {
+        const chatRow = this.createChatRow(message, index);
+        this.container.appendChild(chatRow);
+      });
+    }
+    
+    Utils.logDebug('인라인 뷰 업데이트 완료');
+  }
+}
 
-// 전역 변수로 노출 (Chrome 확장 프로그램에서 사용하기 위함)
-window.UIManager = UIManager; 
+// 싱글톤 인스턴스 생성
+const instance = new UIManager();
+
+// 기본 내보내기
+export default instance; 

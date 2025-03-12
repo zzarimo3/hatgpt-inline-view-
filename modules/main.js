@@ -3,16 +3,15 @@
  * 확장 프로그램의 진입점 및 모듈 통합
  */
 
-// 전역 변수로 노출된 모듈 참조
-const DOMAnalyzer = window.DOMAnalyzer;
-const UIManager = window.UIManager;
-const EventHandlers = window.EventHandlers;
-const Utils = window.Utils;
+import * as Utils from './utils.js';
+import DOMAnalyzer from './dom-analyzer.js';
+import UIManager from './ui-manager.js';
+import EventHandlers from './event-handlers.js';
 
 // 확장 프로그램 메인 클래스
 class ChatGPTInlineView {
   constructor() {
-    this.version = Utils.getExtensionVersion();
+    this.version = Utils.VERSION;
     this.initialized = false;
     
     // 초기화 시도
@@ -29,6 +28,9 @@ class ChatGPTInlineView {
         Utils.logDebug('이미 초기화됨, 중복 실행 방지');
         return;
       }
+      
+      // 설정 로드 및 디버그 모드 설정
+      this.loadSettings();
       
       // 실행 환경 확인
       this.checkEnvironment();
@@ -56,6 +58,16 @@ class ChatGPTInlineView {
         this.initialize();
       }, 5000);
     }
+  }
+  
+  // 설정 로드
+  loadSettings() {
+    const settings = Utils.getSettings() || {};
+    
+    // 디버그 모드 설정
+    Utils.setDebugMode(settings.debugMode || false);
+    
+    Utils.logDebug('설정 로드 완료');
   }
   
   // 실행 환경 확인
@@ -300,15 +312,8 @@ class ChatGPTInlineView {
   }
 }
 
-// 확장 프로그램 인스턴스 생성 및 글로벌 변수에 저장
-window.chatGPTInlineView = new ChatGPTInlineView();
+// 인스턴스 생성
+const instance = new ChatGPTInlineView();
 
-// 페이지 언로드 시 리소스 정리
-window.addEventListener('beforeunload', () => {
-  if (window.chatGPTInlineView) {
-    window.chatGPTInlineView.cleanup();
-  }
-});
-
-// 전역 변수로 노출 (Chrome 확장 프로그램에서 사용하기 위함)
-window.ChatGPTInlineView = ChatGPTInlineView; 
+// 기본 내보내기
+export default instance; 

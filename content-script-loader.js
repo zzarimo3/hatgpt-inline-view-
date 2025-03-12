@@ -1,105 +1,133 @@
 /**
  * ChatGPT 인라인 뷰 - 콘텐츠 스크립트 로더
- * 모듈식 구조로 확장 프로그램의 스크립트를 로드합니다.
+ * ES 모듈을 로드하기 위한 진입점 스크립트
  */
 
 (function() {
-  'use strict';
+  // 디버그 모드
+  const DEBUG = true;
   
-  // 모듈 경로 설정
-  const MODULE_BASE_PATH = chrome.runtime.getURL('modules/');
-  const STYLE_BASE_PATH = chrome.runtime.getURL('styles/');
-  
-  // 로드할 모듈 목록
-  const MODULES = [
-    'utils.js',
-    'dom-analyzer.js',
-    'ui-manager.js',
-    'event-handlers.js',
-    'main.js'
-  ];
-  
-  // 스타일시트 로드
-  function loadStylesheet() {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.type = 'text/css';
-    link.href = STYLE_BASE_PATH + 'styles.css';
-    document.head.appendChild(link);
-    console.log('[ChatGPT 인라인 뷰] 스타일시트 로드 완료');
+  // 로그 함수
+  function log(message) {
+    if (DEBUG) {
+      console.log(`[ChatGPT 인라인 뷰 로더] ${message}`);
+    }
   }
   
-  // 모듈 스크립트 로드
-  function loadModules() {
-    let loadedCount = 0;
+  // 오류 로그 함수
+  function logError(message, error) {
+    console.error(`[ChatGPT 인라인 뷰 로더] ${message}`, error);
+  }
+  
+  // ES 모듈 로드 함수
+  function loadESModule() {
+    log('모듈 로딩 시작');
     
-    // 각 모듈을 순차적으로 로드
-    MODULES.forEach((module, index) => {
-      const script = document.createElement('script');
-      script.src = MODULE_BASE_PATH + module;
-      script.type = 'text/javascript';
-      
-      // 마지막 모듈이 로드된 후 초기화 실행
-      script.onload = () => {
-        loadedCount++;
-        console.log(`[ChatGPT 인라인 뷰] 모듈 로드: ${module}`);
-        
-        // 모든 모듈이 로드되면 초기화
-        if (loadedCount === MODULES.length) {
-          initializeExtension();
-        }
-      };
-      
-      script.onerror = (error) => {
-        console.error(`[ChatGPT 인라인 뷰] 모듈 로드 실패: ${module}`, error);
-      };
-      
-      document.head.appendChild(script);
-    });
-  }
-  
-  // 확장 프로그램 초기화
-  function initializeExtension() {
-    // 페이지가 완전히 로드된 후 지연 실행
-    setTimeout(() => {
-      console.log('[ChatGPT 인라인 뷰] 초기화 시작...');
-      
-      // 메인 모듈이 이미 초기화되었는지 확인
-      if (window.chatGPTInlineView && window.chatGPTInlineView.initialized) {
-        console.log('[ChatGPT 인라인 뷰] 메인 모듈이 이미 초기화되었습니다.');
-      } else {
-        console.log('[ChatGPT 인라인 뷰] 메인 모듈 초기화 시작...');
-        
-        // 메인 모듈이 아직 초기화되지 않은 경우, 수동으로 초기화
-        if (window.ChatGPTInlineView) {
-          window.chatGPTInlineView = new window.ChatGPTInlineView();
-        } else {
-          console.error('[ChatGPT 인라인 뷰] 메인 모듈을 찾을 수 없습니다.');
-        }
+    try {
+      // 기존 모듈 스크립트 확인
+      const existingScript = document.getElementById('chatgpt-inline-view-module');
+      if (existingScript) {
+        log('기존 모듈 스크립트 감지됨, 제거 후 재로딩');
+        existingScript.remove();
       }
-    }, 1000);
+      
+      // 모듈 타입 스크립트 생성
+      const script = document.createElement('script');
+      script.id = 'chatgpt-inline-view-module';
+      script.type = 'module';
+      
+      // 모듈 내용 생성
+      script.textContent = `
+        // ES 모듈 시스템 사용
+        import DOMAnalyzer from '${chrome.runtime.getURL('modules/dom-analyzer.js')}';
+        import UIManager from '${chrome.runtime.getURL('modules/ui-manager.js')}';
+        import EventHandlers from '${chrome.runtime.getURL('modules/event-handlers.js')}';
+        import * as Utils from '${chrome.runtime.getURL('modules/utils.js')}';
+        import InlineView from '${chrome.runtime.getURL('modules/main.js')}';
+        
+        // 글로벌 네임스페이스에 추가 (디버깅용)
+        window.ChatGPTInlineView = {
+          DOMAnalyzer,
+          UIManager,
+          EventHandlers,
+          Utils,
+          app: InlineView
+        };
+        
+        // 초기화 로그
+        console.log('[ChatGPT 인라인 뷰] 모듈 로드 및 초기화 완료');
+      `;
+      
+      // 문서에 추가
+      document.head.appendChild(script);
+      log('모듈 스크립트 추가됨');
+    } catch (error) {
+      logError('모듈 로드 중 오류 발생', error);
+      
+      // 오류 발생 시 대체 방법으로 콘텐츠 스크립트 로드
+      loadContentScripts();
+    }
   }
   
-  // 페이지 로드 확인
-  function checkPageLoaded() {
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      loadStylesheet();
-      loadModules();
-    } else {
-      window.addEventListener('DOMContentLoaded', () => {
-        loadStylesheet();
-        loadModules();
+  // 기존 방식의 콘텐츠 스크립트 로드 (폴백 메서드)
+  function loadContentScripts() {
+    log('대체 방법으로 콘텐츠 스크립트 로드 시도');
+    
+    try {
+      // DOM 분석기 스크립트
+      const analyzerScript = document.createElement('script');
+      analyzerScript.src = chrome.runtime.getURL('content.js');
+      document.head.appendChild(analyzerScript);
+      
+      log('기존 콘텐츠 스크립트 로드됨');
+    } catch (error) {
+      logError('대체 콘텐츠 스크립트 로드 중 오류 발생', error);
+    }
+  }
+  
+  // 확장 프로그램 설정 로드
+  function loadExtensionSettings() {
+    log('확장 프로그램 설정 로드 시도');
+    
+    // Chrome 스토리지 API를 사용하여 설정 로드
+    try {
+      chrome.storage.sync.get({
+        // 기본 설정값
+        enabled: true,
+        darkMode: null,
+        compactView: false,
+        showLineNumbers: true
+      }, function(items) {
+        log('설정 로드됨: ' + JSON.stringify(items));
+        
+        // 로컬 스토리지에 설정 저장 (모듈에서 접근할 수 있도록)
+        localStorage.setItem('chatgpt-inline-view-settings', JSON.stringify(items));
+        
+        // ES 모듈 로드
+        loadESModule();
       });
+    } catch (error) {
+      logError('설정 로드 중 오류 발생', error);
+      
+      // 오류 발생 시 기본 설정으로 진행
+      loadESModule();
     }
   }
   
-  // 실행
-  checkPageLoaded();
+  // DOM 로드 완료 시 실행
+  function onDOMContentLoaded() {
+    log('DOM 로드 완료, 초기화 시작');
+    
+    // 설정 로드 후 모듈 초기화
+    loadExtensionSettings();
+  }
   
-  // 페이지 언로드 시 리소스 정리
-  window.addEventListener('beforeunload', () => {
-    if (window.chatGPTInlineView) {
-      window.chatGPTInlineView.cleanup();
-    }
-  });
+  // DOM 로드 이벤트 등록 또는 즉시 실행
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', onDOMContentLoaded);
+    log('DOMContentLoaded 이벤트 리스너 등록됨');
+  } else {
+    log('문서가 이미 로드됨, 즉시 초기화');
+    onDOMContentLoaded();
+  }
 })(); 
