@@ -6,11 +6,8 @@ let currentUrl = window.location.href;
 
 // 인라인 뷰 컨테이너 초기화 함수
 function clearInlineView() {
-    const container = document.getElementById('chatgpt-inline-view-container');
-    if (container) {
-        console.log("인라인 뷰 컨테이너 초기화");
-        container.remove();
-    }
+    // UI 관리자를 통해 인라인 뷰 제거
+    UIManager.removeInlineView();
 }
 
 // URL 변경 감지 함수
@@ -28,6 +25,12 @@ function checkUrlChange() {
 function rearrangeChat() {
     console.log("인라인 뷰 적용 시도...");
     
+    // 설정이 비활성화된 경우 실행하지 않음
+    if (!UIManager.settings.enabled) {
+        console.log("인라인 뷰가 비활성화되어 있습니다.");
+        return;
+    }
+    
     // URL 변경 확인
     checkUrlChange();
     
@@ -42,90 +45,17 @@ function rearrangeChat() {
         return;
     }
     
-    // DOM 분석기를 사용하여 메인 컨테이너 찾기
-    const mainContainer = DOMAnalyzer.findMainContainer();
+    // UI 관리자를 사용하여 인라인 뷰 생성
+    const container = UIManager.createInlineView(userMessages, assistantMessages);
     
-    // 기존 인라인 뷰 요소 제거
-    clearInlineView();
-    
-    // 메시지 쌍 생성
-    const messagePairs = [];
-    const minLength = Math.min(userMessages.length, assistantMessages.length);
-    
-    for (let i = 0; i < minLength; i++) {
-        messagePairs.push({
-            user: userMessages[i],
-            assistant: assistantMessages[i]
-        });
+    // 생성된 컨테이너가 없으면 종료
+    if (!container) {
+        console.log("인라인 뷰 컨테이너를 생성할 수 없습니다.");
+        return;
     }
     
-    // 인라인 뷰 컨테이너 생성
-    let inlineViewContainer = document.createElement('div');
-    inlineViewContainer.id = 'chatgpt-inline-view-container';
-    inlineViewContainer.style.width = '100%';
-    inlineViewContainer.style.padding = '20px';
-    inlineViewContainer.style.backgroundColor = 'rgba(0,0,0,0.05)';
-    inlineViewContainer.style.borderRadius = '10px';
-    inlineViewContainer.style.marginTop = '20px';
-    inlineViewContainer.style.marginBottom = '20px';
-    
-    // 제목 추가
-    const title = document.createElement('h2');
-    title.textContent = 'ChatGPT 인라인 뷰';
-    title.style.textAlign = 'center';
-    title.style.marginBottom = '20px';
-    title.style.color = '#444';
-    inlineViewContainer.appendChild(title);
-    
-    // 각 메시지 쌍을 인라인으로 재배치
-    messagePairs.forEach((pair, index) => {
-        // 원본 요소 복제
-        const userMsgClone = pair.user.cloneNode(true);
-        const assistantMsgClone = pair.assistant.cloneNode(true);
-        
-        // 한 줄에 질문과 답변을 배치하는 div 생성
-        let newRow = document.createElement('div');
-        newRow.classList.add('chat-row');
-        newRow.style.display = 'flex';
-        newRow.style.alignItems = 'flex-start'; // 상단 정렬로 변경
-        newRow.style.justifyContent = 'space-between';
-        newRow.style.width = '100%';
-        newRow.style.marginBottom = '20px';
-        newRow.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
-        newRow.style.paddingBottom = '15px';
-        
-        // 질문 스타일 조정
-        userMsgClone.style.flex = '1';
-        userMsgClone.style.maxWidth = '45%';
-        userMsgClone.style.textAlign = 'right';
-        userMsgClone.style.padding = '10px';
-        userMsgClone.style.borderRadius = '8px';
-        userMsgClone.style.background = 'rgba(0,0,255,0.1)';
-        userMsgClone.style.marginRight = '10px';
-        
-        // 답변 스타일 조정
-        assistantMsgClone.style.flex = '2';
-        assistantMsgClone.style.maxWidth = '55%';
-        assistantMsgClone.style.textAlign = 'left';
-        assistantMsgClone.style.padding = '10px';
-        assistantMsgClone.style.borderRadius = '8px';
-        assistantMsgClone.style.background = 'rgba(0,255,0,0.1)';
-        
-        try {
-            // 새로운 줄에 복제된 요소 추가
-            newRow.appendChild(userMsgClone);
-            newRow.appendChild(assistantMsgClone);
-            
-            // 인라인 뷰 컨테이너에 새 행 추가
-            inlineViewContainer.appendChild(newRow);
-            console.log("메시지 쌍 재배치 성공:", index);
-        } catch (e) {
-            console.error("메시지 재배치 중 오류 발생:", e);
-        }
-    });
-    
-    // 메인 컨테이너에 인라인 뷰 컨테이너 추가
-    mainContainer.appendChild(inlineViewContainer);
+    // 인라인 뷰 표시
+    UIManager.showInlineView();
     
     console.log("인라인 뷰 적용 완료");
 }
@@ -156,8 +86,13 @@ setInterval(checkUrlChange, 1000);
 
 // 초기 실행
 setTimeout(() => {
+    // UI 관리자 초기화
+    UIManager.init();
+    
     // DOM 분석기를 사용하여 DOM 구조 로깅
     DOMAnalyzer.logDOMStructure();
+    
+    // 인라인 뷰 적용
     rearrangeChat();
     
     // DOM 변경 감지 시작
