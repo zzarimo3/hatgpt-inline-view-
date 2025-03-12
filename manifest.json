@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ChatGPT 인라인 뷰",
-  "version": "1.4",
-  "description": "ChatGPT에서 질문과 답변을 한 줄에 정렬하여 표시합니다.",
+  "version": "1.5.0",
+  "description": "ChatGPT에서 질문과 답변을 한 줄에 정렬하여 표시하고 가독성을 향상시킵니다.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -10,11 +10,24 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://chatgpt.com/*", "*://chat.openai.com/*"],
-      "js": ["utils.js", "dom-analyzer.js", "ui-manager.js", "event-handlers.js", "main.js", "content.js"],
-      "css": ["styles.css"]
+      "matches": ["*://chatgpt.com/*", "*://chat.openai.com/*", "*://*.chatgpt.com/*"],
+      "js": ["content-script-loader.js"],
+      "run_at": "document_end"
     }
   ],
-  "permissions": ["activeTab", "storage"],
-  "host_permissions": ["*://chatgpt.com/*", "*://chat.openai.com/*"]
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "modules/*",
+        "styles/*"
+      ],
+      "matches": ["*://chatgpt.com/*", "*://chat.openai.com/*", "*://*.chatgpt.com/*"]
+    }
+  ],
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["*://chatgpt.com/*", "*://chat.openai.com/*", "*://*.chatgpt.com/*"],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": false
+  }
 } 
