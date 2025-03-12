@@ -5,7 +5,16 @@
 
 import * as Utils from './utils.js';
 import DOMAnalyzer from './dom-analyzer.js';
-import UIManager from './ui-manager.js';
+import EventBus from './event-bus.js';
+
+// 이벤트 타입 정의
+export const EventTypes = {
+  URL_CHANGED: 'url_changed',
+  CONVERSATION_UPDATED: 'conversation_updated',
+  THEME_CHANGED: 'theme_changed',
+  VISIBILITY_CHANGED: 'visibility_changed',
+  SETTINGS_UPDATED: 'settings_updated'
+};
 
 // 이벤트 핸들러 클래스
 class EventHandlers {
@@ -16,8 +25,8 @@ class EventHandlers {
     // URL 변경 감지 인터벌 ID
     this.urlCheckIntervalId = null;
     
-    // 이벤트 리스너 목록
-    this.listeners = [];
+    // DOM 이벤트 리스너 목록
+    this.domListeners = [];
     
     // 초기화 상태
     this.initialized = false;
@@ -41,13 +50,13 @@ class EventHandlers {
     this.startUrlChangeDetection();
     
     // 페이지 가시성 변경 이벤트 리스너
-    this.addListener(document, 'visibilitychange', this.handleVisibilityChange.bind(this));
+    this.addDOMListener(document, 'visibilitychange', this.handleVisibilityChange.bind(this));
     
     // 테마 변경 감지 (다크/라이트 모드)
     if (window.matchMedia) {
       const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
       if (darkModeMediaQuery.addEventListener) {
-        this.addListener(darkModeMediaQuery, 'change', this.handleThemeChange.bind(this));
+        this.addDOMListener(darkModeMediaQuery, 'change', this.handleThemeChange.bind(this));
       }
     }
     
@@ -59,14 +68,14 @@ class EventHandlers {
   }
   
   /**
-   * 이벤트 리스너 추가 (추적을 위해)
+   * DOM 이벤트 리스너 추가 (추적을 위해)
    * @param {EventTarget} target - 이벤트 대상
    * @param {string} type - 이벤트 타입
    * @param {Function} listener - 이벤트 리스너
    */
-  addListener(target, type, listener) {
+  addDOMListener(target, type, listener) {
     target.addEventListener(type, listener);
-    this.listeners.push({ target, type, listener });
+    this.domListeners.push({ target, type, listener });
   }
   
   /**
@@ -103,22 +112,21 @@ class EventHandlers {
       // URL 업데이트
       this.currentUrl = currentUrl;
       
-      // 같은 대화가 아닌 경우에만 인라인 뷰 초기화
+      // URL 변경 이벤트 발행
+      EventBus.publish(EventTypes.URL_CHANGED, {
+        url: currentUrl,
+        isSameConversation: isSameConversation
+      });
+      
+      // 같은 대화가 아닌 경우에만 인라인 뷰 초기화 이벤트 발행
       if (!isSameConversation) {
         Utils.logDebug('새로운 대화로 이동, 인라인 뷰 초기화');
-        this.clearInlineView();
+        EventBus.publish(EventTypes.CONVERSATION_UPDATED, { reset: true });
       }
       
       // 대화 내용 로드
       setTimeout(() => this.loadConversation(), 500);
     }
-  }
-  
-  /**
-   * 인라인 뷰 초기화
-   */
-  clearInlineView() {
-    UIManager.removeInlineView();
   }
   
   /**
@@ -134,25 +142,29 @@ class EventHandlers {
     // 대화 내용 추출
     const messages = DOMAnalyzer.extractConversation();
     
-    // 메시지가 있으면 인라인 뷰 생성/업데이트
-    if (UIManager.container) {
-      UIManager.updateInlineView(messages);
-    } else {
-      UIManager.createInlineView(messages);
-    }
+    // 대화 업데이트 이벤트 발행
+    EventBus.publish(EventTypes.CONVERSATION_UPDATED, {
+      messages: messages,
+      reset: false
+    });
   }
   
   /**
    * 페이지 가시성 변경 처리
    */
   handleVisibilityChange() {
-    if (document.visibilityState === 'visible') {
-      Utils.logDebug('페이지 가시성 변경: 보임');
-      
-      // 페이지가 다시 보이면 대화 내용 업데이트
+    const isVisible = document.visibilityState === 'visible';
+    
+    Utils.logDebug(`페이지 가시성 변경: ${isVisible ? '보임' : '숨김'}`);
+    
+    // 가시성 변경 이벤트 발행
+    EventBus.publish(EventTypes.VISIBILITY_CHANGED, {
+      isVisible: isVisible
+    });
+    
+    // 페이지가 다시 보이면 대화 내용 업데이트
+    if (isVisible) {
       setTimeout(() => this.loadConversation(), 300);
-    } else {
-      Utils.logDebug('페이지 가시성 변경: 숨김');
     }
   }
   
@@ -160,10 +172,14 @@ class EventHandlers {
    * 테마 변경 처리
    */
   handleThemeChange(event) {
-    Utils.logDebug(`시스템 테마 변경: ${event.matches ? '다크' : '라이트'} 모드`);
+    const isDarkMode = event.matches;
+    Utils.logDebug(`시스템 테마 변경: ${isDarkMode ? '다크' : '라이트'} 모드`);
     
-    // UI 테마 업데이트
-    UIManager.detectTheme();
+    // 테마 변경 이벤트 발행
+    EventBus.publish(EventTypes.THEME_CHANGED, {
+      isDarkMode: isDarkMode,
+      theme: isDarkMode ? 'dark' : 'light'
+    });
   }
   
   /**
@@ -178,13 +194,13 @@ class EventHandlers {
       this.urlCheckIntervalId = null;
     }
     
-    // 등록된 모든 이벤트 리스너 제거
-    this.listeners.forEach(({ target, type, listener }) => {
+    // 등록된 모든 DOM 이벤트 리스너 제거
+    this.domListeners.forEach(({ target, type, listener }) => {
       target.removeEventListener(type, listener);
     });
     
     // 리스너 목록 초기화
-    this.listeners = [];
+    this.domListeners = [];
     
     // 초기화 상태 재설정
     this.initialized = false;
