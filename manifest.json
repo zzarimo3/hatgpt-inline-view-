@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "ChatGPT 인라인 뷰",
+  "version": "1.0",
+  "description": "ChatGPT에서 질문과 답변을 한 줄에 정렬하여 표시합니다.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://chatgpt.com/*", "*://chat.openai.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "permissions": ["activeTab"],
+  "host_permissions": ["*://chatgpt.com/*", "*://chat.openai.com/*"]
+} 

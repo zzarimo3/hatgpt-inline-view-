@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Background -->
+  <rect width="128" height="128" rx="16" fill="#10a37f" />
+  
+  <!-- Chat bubble left (question) - First row -->
+  <rect x="16" y="32" width="40" height="24" rx="8" fill="white" />
+  
+  <!-- Chat bubble right (answer) - First row -->
+  <rect x="72" y="32" width="40" height="24" rx="8" fill="#e7f7f4" />
+  
+  <!-- Inline connection line - First row -->
+  <line x1="56" y1="44" x2="72" y2="44" stroke="white" stroke-width="4" />
+  
+  <!-- Chat bubble left (question) - Second row -->
+  <rect x="16" y="72" width="40" height="24" rx="8" fill="white" />
+  
+  <!-- Chat bubble right (answer) - Second row -->
+  <rect x="72" y="72" width="40" height="24" rx="8" fill="#e7f7f4" />
+  
+  <!-- Inline connection line - Second row -->
+  <line x1="56" y1="84" x2="72" y2="84" stroke="white" stroke-width="4" />
+</svg>
