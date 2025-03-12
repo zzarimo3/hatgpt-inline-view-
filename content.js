@@ -84,20 +84,22 @@ const observer = new MutationObserver((mutations) => {
 // URL 변경 감지를 위한 주기적 체크
 setInterval(checkUrlChange, 1000);
 
-// 초기 실행
-setTimeout(() => {
+// 초기화 함수
+function initializeExtension() {
+  console.log("ChatGPT 인라인 뷰 확장 프로그램 초기화 시작...");
+  
+  try {
     // UI 관리자 초기화
     UIManager.init();
     
-    // DOM 분석기를 사용하여 DOM 구조 로깅
-    DOMAnalyzer.logDOMStructure();
+    // 이벤트 핸들러 초기화
+    EventHandlers.init();
     
-    // 인라인 뷰 적용
-    rearrangeChat();
-    
-    // DOM 변경 감지 시작
-    observer.observe(document.body, { childList: true, subtree: true });
-    
-    // 주기적으로 인라인 뷰 업데이트 (새로운 메시지가 추가될 수 있으므로)
-    setInterval(rearrangeChat, 5000);
-}, 3000); 
+    console.log("ChatGPT 인라인 뷰 확장 프로그램 초기화 완료");
+  } catch (error) {
+    console.error("초기화 중 오류 발생:", error);
+  }
+}
+
+// 페이지 로드 후 지연 실행
+setTimeout(initializeExtension, 3000); 
